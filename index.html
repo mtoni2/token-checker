@@ -143,6 +143,7 @@
          <h1 class="text-3xl font-bold">Verificador de Nombres de Token</h1>
          <p class="text-sm text-gray-400">Busca tokens existentes en CoinGecko y en las blockchains principales.</p>
     </div>
+
     <div class="input-group">
         <input type="text" id="tokenName" placeholder="Escribe el nombre del token (ej: ORYX, ETH, BTC)" class="shadow-lg">
         <button class="btn shadow-lg" onclick="searchToken()">Verificar</button>
@@ -155,7 +156,6 @@
 
     <div class="results-container">
         <div id="results">
-            <!-- Los resultados se inyectarán aquí -->
             <div class="result-item flex-col items-start" id="initialMessage">
                 <span class="text-base text-gray-400">Escribe el nombre de un token para comenzar la búsqueda.</span>
             </div>
@@ -167,20 +167,6 @@
     // ✅ CORREGIDO: URLs sin espacios extra
     const CORS_PROXY = 'https://api.allorigins.win/raw?url=';
     const COINGECKO_API_URL = 'https://api.coingecko.com/api/v3/search?query=';
-
-    // ✅ URLs corregidas: sin espacios al inicio
-    const EXPLORER_SEARCH_URLS = {
-        'etherscan': 'https://etherscan.io/search?q=',
-        'bscscan': 'https://bscscan.com/search?q=',
-        'polygonscan': 'https://polygonscan.com/search?q='
-    };
-
-    const DEX_TOOLS_BASE_URL = 'https://www.dextools.io/app/';
-    const DEXTOOLS_CHAINS = {
-        'ethereum': 'ether',
-        'bsc': 'bnb',
-        'polygon': 'polygon'
-    };
 
     async function searchToken() {
         const tokenNameInput = document.getElementById('tokenName');
@@ -194,7 +180,7 @@
         resultsContainer.innerHTML = '';
         loadingSpinner.classList.remove('hidden');
 
-        // Búsqueda en CoinGecko
+        // 1. Búsqueda en CoinGecko
         try {
             const cgResponse = await fetch(`${CORS_PROXY}${encodeURIComponent(COINGECKO_API_URL + tokenName)}`);
             const cgData = await cgResponse.json();
@@ -202,72 +188,81 @@
             const cgTokens = cgData.coins;
             if (cgTokens.length > 0) {
                 const foundToken = cgTokens[0];
-                const info = createResultItem(
+                resultsContainer.innerHTML += createResultItem(
                     'taken',
                     foundToken.name,
                     foundToken.symbol,
                     foundToken.thumb,
-                    `Token encontrado en CoinGecko. ID: ${foundToken.id}.`
+                    `Encontrado en CoinGecko`
                 );
-                resultsContainer.innerHTML += info;
             } else {
-                const info = createResultItem(
+                resultsContainer.innerHTML += createResultItem(
                     'available',
                     tokenName,
                     '',
                     'https://placehold.co/40x40/transparent/white?text=OK',
-                    'Nombre no encontrado en CoinGecko.'
+                    'No encontrado en CoinGecko'
                 );
-                resultsContainer.innerHTML += info;
             }
         } catch (error) {
-            console.error('Error al buscar en CoinGecko:', error);
+            console.error('Error CoinGecko:', error);
             resultsContainer.innerHTML += createResultItem(
                 'taken',
                 tokenName,
                 '',
                 'https://placehold.co/40x40/transparent/white?text=ERR',
-                'Error al conectar con CoinGecko.'
+                'Error al conectar con CoinGecko'
             );
         }
 
-        // Búsqueda en los exploradores de blockchain
-        for (const explorer in EXPLORER_SEARCH_URLS) {
-            try {
-                const explorerSearchUrl = EXPLORER_SEARCH_URLS[explorer] + tokenName;
-                const explorerResponse = await fetch(`${CORS_PROXY}${encodeURIComponent(explorerSearchUrl)}`);
-                const explorerText = await explorerResponse.text();
-                
-                const found = explorerText.includes('contract') || explorerText.includes('token');
+        // 2. ✅ Búsqueda en tu servidor de Render.com
+        try {
+            const apiResponse = await fetch(`https://token-checker.onrender.com/api/check-token?name=${tokenName}`);
+            const apiData = await apiResponse.json();
 
-                if (found) {
-                    const info = createResultItem(
+            const networkNames = {
+                eth: "Ethereum",
+                bsc: "BSC",
+                arb: "Arbitrum",
+                opt: "Optimism",
+                snow: "SnowTrace"
+            };
+
+            for (const [net, result] of Object.entries(apiData.results)) {
+                if (result.status === 'taken') {
+                    resultsContainer.innerHTML += createResultItem(
                         'taken',
                         tokenName,
                         '',
-                        'https://placehold.co/40x40/transparent/white?text=OK',
-                        `Encontrado en ${explorer.toUpperCase()}.`
+                        'https://placehold.co/40x40/transparent/white?text=FOUND',
+                        `Encontrado en ${networkNames[net]}`
                     );
-                    resultsContainer.innerHTML += info;
                 } else {
-                    const info = createResultItem(
+                    resultsContainer.innerHTML += createResultItem(
                         'available',
                         tokenName,
                         '',
                         'https://placehold.co/40x40/transparent/white?text=OK',
-                        `Disponible en ${explorer.toUpperCase()}.`
+                        `No encontrado en ${networkNames[net]}`
                     );
-                    resultsContainer.innerHTML += info;
                 }
-            } catch (error) {
-                console.error(`Error al buscar en ${explorer}:`, error);
             }
+        } catch (error) {
+            console.error("Error al conectar con Render:", error);
+            resultsContainer.innerHTML += createResultItem(
+                'taken',
+                tokenName,
+                '',
+                'https://placehold.co/40x40/transparent/white?text=ERR',
+                'Error al verificar en blockchains'
+            );
         }
 
-        // Búsqueda en Dextools (manual)
+        // 3. Enlaces a Dextools
         const dextoolsResult = createDextoolsLink(tokenName);
         resultsContainer.innerHTML += dextoolsResult;
 
+        // Ocultar loader
         loadingSpinner.classList.add('hidden');
     }
 
@@ -291,43 +286,39 @@
     }
 
     function createDextoolsLink(tokenName) {
+        const chains = {
+            'ethereum': 'ether',
+            'bsc': 'bnb',
+            'polygon': 'polygon'
+        };
+
         let linksHtml = '';
-        for (const chain in DEXTOOLS_CHAINS) {
-            const dextoolsChainName = DEXTOOLS_CHAINS[chain];
-            const url = `${DEX_TOOLS_BASE_URL}${dextoolsChainName}/pool-explorer`;
-            linksHtml += `<a href="${url}?q=${tokenName}" target="_blank" class="text-blue-400 hover:underline">Ver en Dextools (${chain.toUpperCase()})</a>`;
+        for (const [chain, path] of Object.entries(chains)) {
+            const url = `https://www.dextools.io/app/${path}/pool-explorer`;
+            linksHtml += `<a href="${url}?q=${tokenName}" target="_blank" class="text-blue-400 hover:underline">Ver en Dextools (${chain})</a>`;
         }
 
         return `
             <div class="result-item flex-col items-start bg-gray-700">
                 <div class="flex items-center gap-2">
-                    <span class="text-lg font-bold text-white">Verificación en Dextools</span>
+                    <span class="text-lg font-bold text-white">Dextools</span>
                 </div>
                 <div class="text-sm text-gray-300 mt-2">
-                    <p>La verificación automática en Dextools no es posible. Utiliza los siguientes enlaces para la búsqueda manual:</p>
-                    <div class="flex flex-col mt-2">
-                        ${linksHtml}
-                    </div>
+                    <p>Verifica manualmente:</p>
+                    <div class="flex flex-col mt-2">${linksHtml}</div>
                 </div>
             </div>
         `;
     }
 
-    // Event listeners
-    document.getElementById('tokenName').addEventListener('keypress', function(e) {
-        if (e.key === 'Enter') {
-            searchToken();
-        }
+    // Eventos
+    document.getElementById('tokenName').addEventListener('keypress', (e) => {
+        if (e.key === 'Enter') searchToken();
     });
 
-    document.getElementById('tokenName').addEventListener('input', function(e) {
+    document.getElementById('tokenName').addEventListener('input', (e) => {
         e.target.value = e.target.value.toUpperCase().replace(/[^A-Z0-9]/g, '');
     });
-
-    // Inicialización
-    console.log('🚀 Token Checker Real inicializado');
-    console.log('📡 Fuentes de datos disponibles: CoinGecko, Etherscan, BscScan, Polygonscan, Dextools (manual)');
-    console.log('🌐 Proxy CORS configurado:', CORS_PROXY);
 </script>
 
 </body>
