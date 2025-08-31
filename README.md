@@ -1,3 +1,7 @@
+<p align="center">
+  <img src="logo.png" width="100" alt="logo">
+</p>
+
 # 🔍 Token Checker – Verificador de Nombres de Tokens
 
 Herramienta web para verificar si un nombre de token ya existe en blockchains como **Ethereum, BSC, Polygon, Arbitrum, Optimism, Avalanche (SnowTrace)** y en **CoinGecko**.
@@ -20,7 +24,7 @@ Perfecto para creadores de tokens que quieren evitar conflictos de nombres.
 
 ## 🌐 Versión en línea
 
-👉 [https://mtoni2.github.io/token-checker](https://mtoni2.github.io/token-checker) *(cuando lo subas a GitHub Pages)*
+👉 [https://mtoni2.github.io/token-checker](https://mtoni2.github.io/token-checker)
 
 ## 🤝 Contribuir
 
