@@ -13,25 +13,20 @@ const ARBISCAN_API_KEY = 'B6SVGA7K3YBJEQ69AFKJF4YHVX';
 const OPTIMISM_API_KEY = '66N5FRNV1ZD4I87S7MAHCJVXFJ';
 const SNOWSCAN_API_KEY = 'ATJQERBKV1CI3GVKNSE3Q7RGEJ';
 
-// Ruta principal
-app.get('/', (req, res) => {
-    res.send('✅ Servidor del Token Checker funcionando. Usa /api/check-token?name=NOMBRE');
-});
-
-// Ruta para verificar token por nombre
+// Ruta para verificar token por nombre o símbolo
 app.get('/api/check-token', async (req, res) => {
-    const { name } = req.query;
+    const { name, network = 'all' } = req.query;
 
     if (!name) {
         return res.status(400).json({ error: 'Falta el parámetro "name"' });
     }
 
-    const networks = ['eth', 'bsc', 'arb', 'opt', 'snow'];
+    const networks = network === 'all' ? ['eth', 'bsc', 'arb', 'opt', 'snow'] : [network];
     const results = {};
 
     try {
         for (const net of networks) {
-            let apiUrl;
+            let apiUrl, apiKey, chainId;
 
             switch (net) {
                 case 'eth':
