@@ -20,7 +20,7 @@ Perfecto para creadores de tokens que quieren evitar conflictos de nombres.
 
 ## 🌐 Versión en línea
 
-👉 [https://mtoni2.github.io/token-checker](https://mtoni2.github.io/token-checker) *(cuando lo subas a GitHub Pages)*
+👉 [https://mtoni2.github.io/token-checker](https://mtoni2.github.io/token-checker)
 
 ## 🤝 Contribuir
 
