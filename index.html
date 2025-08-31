@@ -141,11 +141,11 @@
     <div class="header text-center">
          <img src="logo.png" alt="Logo" class="mx-auto mb-4" style="max-width: 150px;">
          <h1 class="text-3xl font-bold">Verificador de Nombres de Token</h1>
-         <p class="text-sm text-gray-400">Busca tokens existentes en CoinGecko y en las blockchains principales.</p>
+         <p class="text-sm text-gray-400">Busca por nombre, símbolo o dirección</p>
     </div>
 
     <div class="input-group">
-        <input type="text" id="tokenName" placeholder="Escribe el nombre del token (ej: ORYX, ETH, BTC)" class="shadow-lg">
+        <input type="text" id="tokenName" placeholder="Nombre, símbolo o dirección del token" class="shadow-lg">
         <button class="btn shadow-lg" onclick="searchToken()">Verificar</button>
     </div>
 
@@ -157,67 +157,76 @@
     <div class="results-container">
         <div id="results">
             <div class="result-item flex-col items-start" id="initialMessage">
-                <span class="text-base text-gray-400">Escribe el nombre de un token para comenzar la búsqueda.</span>
+                <span class="text-base text-gray-400">Escribe el nombre, símbolo o dirección del token para comenzar.</span>
             </div>
         </div>
     </div>
 </div>
 
 <script>
-    // ✅ CORREGIDO: URLs sin espacios extra
     const CORS_PROXY = 'https://api.allorigins.win/raw?url=';
     const COINGECKO_API_URL = 'https://api.coingecko.com/api/v3/search?query=';
+    const RENDER_API_URL = 'https://token-checker-ilh5.onrender.com/api/check-token?name=';
 
     async function searchToken() {
         const tokenNameInput = document.getElementById('tokenName');
-        const tokenName = tokenNameInput.value.trim().toUpperCase();
-        if (!tokenName) return;
+        const query = tokenNameInput.value.trim();
+        if (!query) return;
 
         const resultsContainer = document.getElementById('results');
         const loadingSpinner = document.getElementById('loading');
         
-        // Limpiar resultados anteriores y mostrar loader
+        // Limpiar resultados y mostrar loader
         resultsContainer.innerHTML = '';
         loadingSpinner.classList.remove('hidden');
 
-        // 1. Búsqueda en CoinGecko
+        // 1. Verificar si es una dirección (42 caracteres, empieza con 0x)
+        if (query.startsWith('0x') && query.length === 42) {
+            resultsContainer.innerHTML += createResultItem(
+                'taken',
+                'Dirección',
+                '',
+                'https://placehold.co/40x40/transparent/white?text=ADDR',
+                `Posible contrato en: <a href="https://etherscan.io/address/${query}" target="_blank" class="text-blue-400 hover:underline">Etherscan</a> | <a href="https://bscscan.com/address/${query}" target="_blank" class="text-blue-400 hover:underline">BscScan</a>`
+            );
+        }
+
+        // 2. Búsqueda en CoinGecko
         try {
-            const cgResponse = await fetch(`${CORS_PROXY}${encodeURIComponent(COINGECKO_API_URL + tokenName)}`);
+            const cgResponse = await fetch(`${CORS_PROXY}${encodeURIComponent(COINGECKO_API_URL + query)}`);
             const cgData = await cgResponse.json();
 
-            const cgTokens = cgData.coins;
-            if (cgTokens.length > 0) {
-                const foundToken = cgTokens[0];
+            if (cgData.coins && cgData.coins.length > 0) {
+                const found = cgData.coins[0];
                 resultsContainer.innerHTML += createResultItem(
                     'taken',
-                    foundToken.name,
-                    foundToken.symbol,
-                    foundToken.thumb,
+                    found.name,
+                    found.symbol.toUpperCase(),
+                    found.thumb,
                     `Encontrado en CoinGecko`
                 );
             } else {
                 resultsContainer.innerHTML += createResultItem(
                     'available',
-                    tokenName,
+                    query,
                     '',
                     'https://placehold.co/40x40/transparent/white?text=OK',
                     'No encontrado en CoinGecko'
                 );
             }
         } catch (error) {
-            console.error('Error CoinGecko:', error);
             resultsContainer.innerHTML += createResultItem(
                 'taken',
-                tokenName,
+                query,
                 '',
                 'https://placehold.co/40x40/transparent/white?text=ERR',
                 'Error al conectar con CoinGecko'
             );
         }
 
-        // 2. ✅ Búsqueda en tu servidor de Render.com
+        // 3. Búsqueda en tu servidor de Render (por nombre)
         try {
-            const apiResponse = await fetch(`https://token-checker-ilh5.onrender.com/api/check-token?name=${tokenName}`);
+            const apiResponse = await fetch(`${RENDER_API_URL}${encodeURIComponent(query)}`);
             const apiData = await apiResponse.json();
 
             const networkNames = {
@@ -232,37 +241,41 @@
                 if (result.status === 'taken') {
                     resultsContainer.innerHTML += createResultItem(
                         'taken',
-                        tokenName,
+                        query,
                         '',
                         'https://placehold.co/40x40/transparent/white?text=FOUND',
                         `Encontrado en ${networkNames[net]}`
                     );
-                } else {
-                    resultsContainer.innerHTML += createResultItem(
-                        'available',
-                        tokenName,
-                        '',
-                        'https://placehold.co/40x40/transparent/white?text=OK',
-                        `No encontrado en ${networkNames[net]}`
-                    );
                 }
             }
         } catch (error) {
-            console.error("Error al conectar con Render:", error);
             resultsContainer.innerHTML += createResultItem(
                 'taken',
-                tokenName,
+                query,
                 '',
                 'https://placehold.co/40x40/transparent/white?text=ERR',
                 'Error al verificar en blockchains'
             );
         }
 
-        // 3. Enlaces a Dextools
-        const dextoolsResult = createDextoolsLink(tokenName);
-        resultsContainer.innerHTML += dextoolsResult;
+        // 4. Enlaces útiles
+        resultsContainer.innerHTML += `
+            <div class="result-item flex-col items-start bg-gray-700">
+                <div class="flex items-center gap-2">
+                    <span class="text-lg font-bold text-white">Búsqueda manual</span>
+                </div>
+                <div class="text-sm text-gray-300 mt-2">
+                    <p>Verifica en exploradores:</p>
+                    <div class="flex flex-col mt-2">
+                        <a href="https://etherscan.io/search?q=${query}" target="_blank" class="text-blue-400 hover:underline">🔍 Buscar en Etherscan</a>
+                        <a href="https://bscscan.com/search?q=${query}" target="_blank" class="text-blue-400 hover:underline">🔍 Buscar en BscScan</a>
+                        <a href="https://polygonscan.com/search?q=${query}" target="_blank" class="text-blue-400 hover:underline">🔍 Buscar en Polygonscan</a>
+                        <a href="https://www.dextools.io/app/ether/pool-explorer?q=${query}" target="_blank" class="text-blue-400 hover:underline">📊 Ver en Dextools</a>
+                    </div>
+                </div>
+            </div>
+        `;
 
-        // Ocultar loader
         loadingSpinner.classList.add('hidden');
     }
 
@@ -285,39 +298,9 @@
         `;
     }
 
-    function createDextoolsLink(tokenName) {
-        const chains = {
-            'ethereum': 'ether',
-            'bsc': 'bnb',
-            'polygon': 'polygon'
-        };
-
-        let linksHtml = '';
-        for (const [chain, path] of Object.entries(chains)) {
-            const url = `https://www.dextools.io/app/${path}/pool-explorer`;
-            linksHtml += `<a href="${url}?q=${tokenName}" target="_blank" class="text-blue-400 hover:underline">Ver en Dextools (${chain})</a>`;
-        }
-
-        return `
-            <div class="result-item flex-col items-start bg-gray-700">
-                <div class="flex items-center gap-2">
-                    <span class="text-lg font-bold text-white">Dextools</span>
-                </div>
-                <div class="text-sm text-gray-300 mt-2">
-                    <p>Verifica manualmente:</p>
-                    <div class="flex flex-col mt-2">${linksHtml}</div>
-                </div>
-            </div>
-        `;
-    }
-
     // Eventos
     document.getElementById('tokenName').addEventListener('keypress', (e) => {
         if (e.key === 'Enter') searchToken();
-    });
-
-    document.getElementById('tokenName').addEventListener('input', (e) => {
-        e.target.value = e.target.value.toUpperCase().replace(/[^A-Z0-9]/g, '');
     });
 </script>
 
