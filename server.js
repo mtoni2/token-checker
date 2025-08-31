@@ -3,6 +3,8 @@ const axios = require('axios');
 const cors = require('cors');
 
 const app = express();
+
+// Middleware
 app.use(cors());
 app.use(express.json());
 
@@ -13,21 +15,27 @@ const ARBISCAN_API_KEY = 'B6SVGA7K3YBJEQ69AFKJF4YHVX';
 const OPTIMISM_API_KEY = '66N5FRNV1ZD4I87S7MAHCJVXFJ';
 const SNOWSCAN_API_KEY = 'ATJQERBKV1CI3GVKNSE3Q7RGEJ';
 
-// Ruta para verificar token por nombre o símbolo
+// ✅ Ruta principal para evitar "Cannot GET /"
+app.get('/', (req, res) => {
+    res.send('✅ Servidor del Token Checker funcionando. Usa /api/check-token?name=NOMBRE');
+});
+
+// Ruta para verificar token por nombre
 app.get('/api/check-token', async (req, res) => {
-    const { name, network = 'all' } = req.query;
+    const { name } = req.query;
 
     if (!name) {
         return res.status(400).json({ error: 'Falta el parámetro "name"' });
     }
 
-    const networks = network === 'all' ? ['eth', 'bsc', 'arb', 'opt', 'snow'] : [network];
+    const networks = ['eth', 'bsc', 'arb', 'opt', 'snow'];
     const results = {};
 
     try {
         for (const net of networks) {
-            let apiUrl, apiKey, chainId;
+            let apiUrl;
 
+            // ✅ URLs corregidas: sin espacios al inicio
             switch (net) {
                 case 'eth':
                     apiUrl = `https://api.etherscan.io/api?module=token&action=getTokenListByName&name=${name}&apikey=${ETHERSCAN_API_KEY}`;
@@ -65,17 +73,22 @@ app.get('/api/check-token', async (req, res) => {
                     results[net] = { status: 'available' };
                 }
             } catch (error) {
-                results[net] = { status: 'error', message: error.message };
+                results[net] = { 
+                    status: 'error', 
+                    message: error.message || 'Error al conectar con la API' 
+                };
             }
         }
 
         res.json({ name, results });
 
     } catch (error) {
+        console.error('Error en el servidor:', error);
         res.status(500).json({ error: 'Error interno del servidor' });
     }
 });
 
+// ✅ Usa el puerto de Render o 3000 localmente
 const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => {
     console.log(`✅ Servidor API listo en http://localhost:${PORT}`);
