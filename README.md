@@ -1,5 +1,5 @@
 <p align="center">
-  <img src="logo.png" width="300" alt="Token Checker Logo">
+  <img src="logo.png" width="200" alt="Token Checker Logo">
 </p>
 
 # 🔍 Token Checker – Verificador de Nombres de Tokens
